@@ -5,9 +5,9 @@ import json
 import requests
 from datetime import datetime
 
+from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils.http import urlsafe_base64_decode
-from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login as auth_login
 from django.views.generic import View, FormView, TemplateView
 from django.http.response import JsonResponse
@@ -33,13 +33,13 @@ from user.forms import (
     FindPwForm, SignupForm, LoginForm, 
     ChangeSetPwdForm,VerificationEmailForm
     )
+from news.dto import KeywordInforDto, KeywordDto, CategoryDto
 from user.mixin import VerifyEmailMixin
 from user.models import User, Category, Keyword
 from news.models import UserPress
 from user.services import UserService, UserEmailVerifyService
-from user.exception import SocialLoginException, KakaoException
-from news.dto import KeywordInforDto, KeywordDto, CategoryDto
 from news.services import CategoryService, KeyWordsService, PressService
+from user.exception import SocialLoginException, KakaoException
 from social.services import CommentService
 
 
@@ -55,9 +55,16 @@ class UserSignupView(VerifyEmailMixin, View):
         if request.is_ajax():
             signup_form = SignupForm(json.loads(request.body))
             data = self._build_signup_dto(request)
+
+            form_info = self.verify_form(signup_form)
             
-            context = self.send_verify_email(request, data, signup_form, 'new')
+            if form_info["error"]:
+                return JsonResponse(form_info)
+
+            mail_info = self.verify_email(data)
             
+            context = self.send_user_email(request, mail_info)
+
             return JsonResponse(context)
 
     def _build_signup_dto(self, request):
@@ -104,10 +111,20 @@ class ResendEmailView(VerifyEmailMixin, View):
     def post(self, request, *args, **kwargs):
         if request.is_ajax():
             data = self._build_resend_dto(request)
-            forms = VerificationEmailForm(json.loads(request.body))
+            resend_signup_form = VerificationEmailForm(json.loads(request.body))
+
+            form_info = self.verify_form(resend_signup_form)
             
-            context = self.send_verify_email(request, data, forms, 'again')
+            if form_info["error"]:
+                return JsonResponse(form_info)
+
+            mail_info = self.verify_resend_email(data)
             
+            if mail_info["error"]:
+                return JsonResponse(mail_info)
+
+            context = self.send_user_email(request, mail_info)
+
             return JsonResponse(context)
 
     def _build_resend_dto(self, request):
@@ -147,7 +164,7 @@ def kakao_login(request):
             raise SocialLoginException("User arleady logged in")
 
         client_id = os.environ.get("KAKAO_CLIENT_ID")
-        redirect_uri = "http://neonews.site/user/login/social/kakao/callback/"
+        redirect_uri = "https://neonews.site/user/login/social/kakao/callback/"
     
         return redirect(
             f"https://kauth.kakao.com/oauth/authorize?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}"
@@ -172,7 +189,7 @@ def kakao_login_callback(request):
             KakaoException("Can't get code")
 
         client_id = os.environ.get("KAKAO_CLIENT_ID")
-        redirect_uri = "http://neonews.site/user/login/social/kakao/callback/"
+        redirect_uri = "https://neonews.site/user/login/social/kakao/callback/"
         client_secret = os.environ.get("KAKAO_SECRET_KEY")
         request_access_token = requests.post(
             f"https://kauth.kakao.com/oauth/token?grant_type=authorization_code&client_id={client_id}&redirect_uri={redirect_uri}&code={code}&client_secret={client_secret}",
@@ -353,8 +370,7 @@ class UserInforAddView(LoginRequiredMixin, View):
             
             return JsonResponse({
                 'success':True,
-                # 'url': 'http://neonews.site/'
-                'url': 'http://127.0.0.1:8000/'
+                'url': 'https://neonews.site/'
                 })
 
 
@@ -387,7 +403,7 @@ class DeletePasswordView(LoginRequiredMixin ,View):
             UserService.update_active(data.user_pk)
             logout(request)
             messages.success(request, '회원탈퇴 완료 !')
-            context = context_info(error=error, url='http://neonews.site/')
+            context = context_info(error=error, url='https://neonews.site/')
             return JsonResponse(context)
 
     def _build_user_dto(self, request):
