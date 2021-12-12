@@ -1,5 +1,8 @@
 from __future__ import absolute_import, unicode_literals
+
 from celery import Celery
+from celery.schedules import crontab
+
 import os
 
 
@@ -15,8 +18,10 @@ def debug_task(self):
 app.conf.beat_schedule = {
     'add-every-minutes-naver':{
     'task':'user.tasks.task_scrappy_naver',
+    'schedule': crontab(minute='*/3'),
     },
     'add-every-minutes-daum':{
     'task':'user.tasks.task_scrappy_daum',
+    'schedule': crontab(minute='*/5'),
     }
 }

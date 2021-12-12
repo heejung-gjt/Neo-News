@@ -35,19 +35,12 @@ class VerifyEmailMixin:
     def verify_resend_email(self, dto:ResendDto):
         try:
             user = User.objects.get(email=dto.email)
-            resend_email_user = User.objects.get(email=dto.resend_email)
-
-            if user != resend_email_user:
-                context = context_info(msg='이메일을 확인해주세요 !', error=True)
-
-                return JsonResponse(context)
-            
             user = UserService.update(dto.email, dto.resend_email)
             mail = dto.resend_email
 
             return {"user": user, "mail": mail, "error":False}
 
-        except User.DoesNotExist:
+        except user.DoesNotExist:
             context = context_info(msg="회원가입부터 해주세요", error=True)
 
             return context

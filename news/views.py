@@ -17,12 +17,13 @@ class IndexView(View):
         categories = CategoryService.get_filter_categories(data.pk)
         keywords = KeyWordsService.get_filter_keywords(data.pk)
         article_list = ArticleService.get_articles()
+
         if request.user.is_authenticated :
             userpress = UserPressService.get_userpress(data.pk)
+            
             if userpress is not None:
                 press_list = PressService.get_presses_name(userpress)
                 article_list = ArticleService.get_articles_in_userpress(press_list)
-
         page_range, article_obj = paging(request.GET.get('page','1'), article_list, 20)
         context = context_info(
                                 categories=categories,

@@ -78,12 +78,16 @@ class UserSignupView(VerifyEmailMixin, View):
 
 class SignupRedirectView(View):
     def get(self, request, uidb64, token):
-        uid = force_text(urlsafe_base64_decode(uidb64))
-        user = UserService.get_user(uid)
-        token = jwt.decode(token, SECRET_KEY, ALGORITHM)
-        
-        UserEmailVerifyService.verify_user_active(user, token['user_pk'])
-        
+        try:
+            uid = force_text(urlsafe_base64_decode(uidb64))
+            user = UserService.get_user(uid)
+            token = jwt.decode(token, SECRET_KEY, ALGORITHM)
+            
+            UserEmailVerifyService.verify_user_active(user, token['user_pk'])
+        except:
+            context = context_info(msg="인증 링크가 유효하지 않습니다.")
+            return render(request, 'signup.html', context)
+            
         return redirect('user:login')
 
 
